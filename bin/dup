@@ -1,0 +1,59 @@
+#!/bin/bash
+
+cur_term="xterm"
+
+function detect_terminal() {
+  [ ! -z $cur_term ] && return;
+  local known_terminals=(
+    st
+    ghostty
+    xterm
+    gnome-terminal
+    konsole
+    xfce4-terminal
+    terminator
+    urxvt
+    foot)
+  for t in ${known_terminals[@]}; do
+    if [ ! -z $(command -v $t) ] ; then
+      cur_term=$t
+      break
+    fi
+  done
+}
+
+# START
+detect_terminal
+trap "disown -a" EXIT
+
+# No arguments = $ dup 1
+[ -z "$1" ] && set -- "1" "$@"
+
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+  for i in $(seq 1 $1); do
+    "$cur_term" &
+  done
+  exit
+fi
+
+case "$1" in
+  "-h"|"--help")
+    printf "Usage:\ndup [<num> | <dir> | <app> | -e <app> [args] | -h]\n%s%s%s%s" \
+      $'<num>: number of terminals to spawn\n' \
+      $'<dir>: directory\n' \
+      $'<app>: application to open\n' \
+      $'-e: open application, NOT directory\n'
+    exit
+    ;;
+  "-e")
+    [ -z "$2" ] && printf "Option usage:\ndup -e <command> [args]...\n" && exit
+    "$cur_term" -e "$2 ${@:3}" &
+    exit
+    ;;
+esac
+
+if [ -d "$1" ]; then
+  "$cur_term" -e "cd $1 && bash" &
+else
+  "$cur_term" -e "$1 ${@:2}" &
+fi

@@ -1,0 +1,398 @@
+#!/usr/bin/env python3
+"""
+GUI to practice json test files.
+"""
+
+import json
+import os
+import sys
+import html
+import webbrowser
+import tkinter as tk
+import shutil
+import subprocess
+from tkinter import ttk, messagebox
+from pathlib import Path
+from datetime import datetime
+from tkinter import font as tkfont
+
+APP_DIR = Path.home() / ".local" / "tmp" / "uatest"
+# --- Paleta de colores para la GUI ---
+COL_BG        = "#f3f4f6"
+COL_CARD      = "#ffffff"
+COL_PRIMARY   = "#3b82f6"
+COL_PRIMARY_D = "#1e40af"
+COL_TEXT      = "#1f2937"
+COL_TEXT_LT   = "#6b7280"
+COL_BORDER    = "#e5e7eb"
+COL_OK        = "#10b981"
+COL_OK_BG     = "#ecfdf5"
+COL_ERR       = "#ef4444"
+COL_ERR_BG    = "#fef2f2"
+COL_SEL_BG    = "#dbeafe"
+
+
+# ---------------------------------------------------------------------------
+# Carga de tests
+# ---------------------------------------------------------------------------
+
+def list_tests():
+    """Devuelve lista de (nombre_bonito, path) de los .json en APP_DIR."""
+    global APP_DIR
+    if not APP_DIR.exists():
+        return []
+    tests = []
+    for f in sorted(APP_DIR.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            title = data.get("title", f.stem)
+        except Exception:
+            title = f.stem
+        tests.append((title, f))
+    return tests
+
+
+# ---------------------------------------------------------------------------
+# GUI Tkinter
+# ---------------------------------------------------------------------------
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("pysdtest — Selector de Tests")
+        self.geometry("820x640")
+        self.minsize(640, 480)
+        self.configure(bg=COL_BG)
+
+        # Estado
+        self._tests = []            # [(title, Path), ...]
+        self._current_test = None   # dict del JSON cargado
+        self._current_path = None   # Path del JSON
+        self._questions_widgets = []  # [(q_id, block_frame, var, options_widgets, fb_label, data), ...]
+
+        # Contenedor raíz donde se dibuja la vista activa
+        self.main_frame = tk.Frame(self, bg=COL_BG)
+        self.main_frame.pack(fill="both", expand=True)
+
+        self._show_selector()
+
+    # ------------------------------------------------------------------
+    # Vista 1: Selector de tests
+    # ------------------------------------------------------------------
+    def _show_selector(self):
+        # Limpiar
+        for w in self.main_frame.winfo_children():
+            w.destroy()
+
+        header = tk.Frame(self.main_frame, bg=COL_BG)
+        header.pack(fill="x", padx=24, pady=(20, 8))
+        tk.Label(header, text="Tests disponibles",
+                 font=("Segoe UI", 16, "bold"),
+                 bg=COL_BG, fg=COL_PRIMARY_D).pack(anchor="w")
+        tk.Label(header, text=f"Directorio: {APP_DIR}",
+                 font=("Segoe UI", 9),
+                 bg=COL_BG, fg=COL_TEXT_LT).pack(anchor="w", pady=(4, 0))
+
+        body = tk.Frame(self.main_frame, bg=COL_BG)
+        body.pack(fill="both", expand=True, padx=24, pady=8)
+
+        # Lista de tests
+        listbox = tk.Listbox(
+            body, font=("Segoe UI", 11), activestyle="none",
+            selectbackground=COL_SEL_BG, selectforeground=COL_PRIMARY_D,
+            highlightthickness=0, borderwidth=1, relief="solid",
+            bg=COL_CARD, fg=COL_TEXT,
+        )
+        listbox.pack(fill="both", expand=True, side="left")
+
+        scroll = tk.Scrollbar(body, orient="vertical", command=listbox.yview)
+        scroll.pack(side="right", fill="y")
+        listbox.configure(yscrollcommand=scroll.set)
+
+        self._tests = list_tests()
+        if not self._tests:
+            listbox.insert(tk.END, " (No hay ficheros .json en el directorio)")
+            listbox.itemconfig(0, foreground=COL_TEXT_LT)
+            listbox.configure(state="disabled")
+        else:
+            for title, _ in self._tests:
+                listbox.insert(tk.END, f"  {title}")
+            listbox.selection_set(0)
+
+        listbox.bind("<Double-Button-1>", lambda e: self._open_selected(listbox))
+
+        # Barra inferior
+        footer = tk.Frame(self.main_frame, bg=COL_BG)
+        footer.pack(fill="x", padx=24, pady=(8, 20))
+
+        btn_open = tk.Button(footer, text="Abrir test",
+                             font=("Segoe UI", 10, "bold"),
+                             bg=COL_PRIMARY, fg="white",
+                             activebackground=COL_PRIMARY_D, activeforeground="white",
+                             relief="flat", padx=18, pady=8, cursor="hand2",
+                             command=lambda: self._open_selected(listbox))
+        btn_open.pack(side="right")
+
+        btn_refresh = tk.Button(footer, text="Refrescar",
+                                font=("Segoe UI", 10),
+                                bg=COL_CARD, fg=COL_TEXT,
+                                relief="solid", borderwidth=1,
+                                padx=14, pady=8, cursor="hand2",
+                                command=self._show_selector)
+        btn_refresh.pack(side="right", padx=(0, 8))
+
+        btn_folder = tk.Button(footer, text="Abrir carpeta",
+                               font=("Segoe UI", 10),
+                               bg=COL_CARD, fg=COL_TEXT,
+                               relief="solid", borderwidth=1,
+                               padx=14, pady=8, cursor="hand2",
+                               command=self._open_folder)
+        btn_folder.pack(side="left")
+
+    def _open_selected(self, listbox):
+        if not self._tests:
+            return
+        sel = listbox.curselection()
+        if not sel:
+            return
+        _, path = self._tests[sel[0]]
+        self._load_test(path)
+
+    def _load_test(self, path: Path):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            messagebox.showerror("Error de formato", f"JSON inválido:\n{e}")
+            return
+        if "questions" not in data or not data["questions"]:
+            messagebox.showerror("Error", "El fichero no contiene preguntas.")
+            return
+        self._current_test = data
+        self._current_path = path
+        self._show_test()
+
+    # ------------------------------------------------------------------
+    # Vista 2: Test
+    # ------------------------------------------------------------------
+    def _show_test(self):
+        # Limpiar
+        for w in self.main_frame.winfo_children():
+            w.destroy()
+
+        data = self._current_test
+        title = data.get("title", "Test")
+        subtitle = data.get("subtitle", "")
+
+        # Cabecera
+        header = tk.Frame(self.main_frame, bg=COL_BG)
+        header.pack(fill="x", padx=24, pady=(20, 8))
+        tk.Label(header, text=title, font=("Segoe UI", 16, "bold"),
+                 bg=COL_BG, fg=COL_PRIMARY_D, wraplength=760,
+                 justify="left").pack(anchor="w")
+        if subtitle:
+            tk.Label(header, text=subtitle, font=("Segoe UI", 10),
+                     bg=COL_BG, fg=COL_TEXT_LT, wraplength=760,
+                     justify="left").pack(anchor="w", pady=(4, 0))
+
+        # Barra superior: Volver
+        toolbar = tk.Frame(self.main_frame, bg=COL_BG)
+        toolbar.pack(fill="x", padx=24, pady=(0, 8))
+        tk.Button(toolbar, text="← Volver al selector",
+                  font=("Segoe UI", 10), bg=COL_CARD, fg=COL_TEXT,
+                  relief="solid", borderwidth=1, padx=14, pady=6,
+                  cursor="hand2", command=self._back_to_selector).pack(side="left")
+
+        # Área con scroll
+        scroll_outer = tk.Frame(self.main_frame, bg=COL_BG)
+        scroll_outer.pack(fill="both", expand=True, padx=24)
+
+        canvas = tk.Canvas(scroll_outer, bg=COL_BG, highlightthickness=0)
+        vbar = tk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vbar.set)
+        vbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = tk.Frame(canvas, bg=COL_BG)
+        canvas.create_window((0, 0), window=inner, anchor="nw", tags="inner")
+
+        def _on_inner_config(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfigure("inner", width=canvas.winfo_width())
+        inner.bind("<Configure>", _on_inner_config)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure("inner", width=e.width))
+
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+
+        # Construir cada pregunta
+        self._questions_widgets = []
+        for idx, q in enumerate(data["questions"], start=1):
+            block = tk.Frame(inner, bg=COL_CARD,
+                             highlightbackground=COL_BORDER,
+                             highlightthickness=1, bd=0)
+            block.pack(fill="x", pady=8, padx=2)
+
+            tk.Label(block, text=f"{idx}. {q['text']}",
+                     font=("Segoe UI", 11, "bold"),
+                     bg=COL_CARD, fg=COL_PRIMARY_D,
+                     wraplength=720, justify="left",
+                     padx=16, pady=12).pack(anchor="w", fill="x")
+
+            var = tk.StringVar(value="")
+            options_widgets = []
+            for opt in q["options"]:
+                rb = tk.Radiobutton(
+                    block, text=opt["label"], variable=var, value=opt["value"],
+                    font=("Segoe UI", 10), bg=COL_CARD, fg=COL_TEXT,
+                    activebackground=COL_CARD, selectcolor=COL_CARD,
+                    anchor="w", justify="left", wraplength=680,
+                    padx=16, pady=6, cursor="hand2",
+                )
+                rb.pack(anchor="w", fill="x", padx=8)
+                options_widgets.append((opt["value"], rb))
+
+            fb = tk.Label(block, text="", font=("Segoe UI", 10),
+                          bg=COL_CARD, fg=COL_TEXT,
+                          wraplength=720, justify="left",
+                          padx=16, pady=8)
+            fb.pack(anchor="w", fill="x")
+
+            self._questions_widgets.append({
+                "q_id": f"q{idx}",
+                "block": block,
+                "var": var,
+                "options": options_widgets,
+                "feedback": fb,
+                "data": q,
+            })
+
+        # Botones de acción
+        actions = tk.Frame(inner, bg=COL_BG)
+        actions.pack(fill="x", pady=16)
+
+        tk.Button(actions, text="Corregir Examen",
+                  font=("Segoe UI", 11, "bold"),
+                  bg=COL_PRIMARY, fg="white",
+                  activebackground=COL_PRIMARY_D, activeforeground="white",
+                  relief="flat", padx=24, pady=10, cursor="hand2",
+                  command=self._evaluate).pack(side="left")
+
+        tk.Button(actions, text="Reiniciar",
+                  font=("Segoe UI", 10),
+                  bg=COL_CARD, fg=COL_TEXT,
+                  relief="solid", borderwidth=1, padx=18, pady=10,
+                  cursor="hand2", command=self._reset_test).pack(side="left", padx=(8, 0))
+
+        # Resultado (oculto hasta corregir)
+        self._result_label = tk.Label(inner, text="", font=("Segoe UI", 14, "bold"),
+                                      bg=COL_BG, fg=COL_PRIMARY_D, pady=16)
+        self._result_label.pack(fill="x")
+
+        canvas.yview_moveto(0)
+
+    def _back_to_selector(self):
+        # Desvincular la rueda del ratón para no dejar handlers colgando
+        self.unbind_all("<MouseWheel>")
+        self.unbind_all("<Button-4>")
+        self.unbind_all("<Button-5>")
+        self._current_test = None
+        self._current_path = None
+        self._questions_widgets = []
+        self._show_selector()
+
+    def _reset_test(self):
+        for q in self._questions_widgets:
+            q["var"].set("")
+            q["block"].configure(bg=COL_CARD)
+            q["feedback"].configure(text="", bg=COL_CARD, fg=COL_TEXT)
+            for _, rb in q["options"]:
+                rb.configure(bg=COL_CARD, fg=COL_TEXT, font=("Segoe UI", 10))
+        self._result_label.configure(text="")
+
+    def _evaluate(self):
+        score = 0
+        total = len(self._questions_widgets)
+
+        for q in self._questions_widgets:
+            q_id = q["q_id"]
+            data = q["data"]
+            correct = data["correct"].lower()
+            explanation = data.get("explanation", "Sin explicación.")
+            selected = q["var"].get().lower()
+            block = q["block"]
+            fb = q["feedback"]
+
+            # Resetear estilos
+            for _, rb in q["options"]:
+                rb.configure(bg=COL_CARD, fg=COL_TEXT, font=("Segoe UI", 10))
+            fb.configure(bg=COL_CARD, text="", fg=COL_TEXT)
+            block.configure(bg=COL_CARD)
+
+            # Marcar la correcta en verde
+            for value, rb in q["options"]:
+                if value.lower() == correct:
+                    rb.configure(bg=COL_OK_BG, fg="#065f46",
+                                 font=("Segoe UI", 10, "bold"))
+
+            if selected == correct:
+                score += 1
+                block.configure(bg=COL_OK_BG)
+                fb.configure(bg=COL_OK_BG, fg="#065f46",
+                             text=f"✔ Correcto. {explanation}")
+            elif selected == "":
+                block.configure(bg=COL_ERR_BG)
+                fb.configure(bg=COL_ERR_BG, fg="#991b1b",
+                             text=f"✘ No respondida. La correcta es ({correct}). {explanation}")
+            else:
+                # Marcar la seleccionada incorrecta en rojo
+                for value, rb in q["options"]:
+                    if value.lower() == selected:
+                        rb.configure(bg=COL_ERR_BG, fg="#991b1b",
+                                     font=("Segoe UI", 10, "overstrike"))
+                block.configure(bg=COL_ERR_BG)
+                fb.configure(bg=COL_ERR_BG, fg="#991b1b",
+                             text=f"✘ Incorrecto. La correcta es ({correct}). {explanation}")
+
+        final = (score / total) * 10 if total else 0
+        if final >= 9:
+            msg = "¡Excelente! Comprensión muy sólida."
+        elif final >= 7:
+            msg = "Buen trabajo. Repasa lo fallado."
+        elif final >= 5:
+            msg = "Aprobado justo. Repasa el temario."
+        else:
+            msg = "Necesitas repasar el contenido."
+
+        self._result_label.configure(
+            text=f"Resultado: {score}/{total}  ·  Nota: {final:.1f}/10\n{msg}"
+        )
+
+    # ------------------------------------------------------------------
+    # Utilidades
+    # ------------------------------------------------------------------
+    def _open_folder(self):
+        global APP_DIR
+        APP_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            if sys.platform.startswith("darwin"):
+                subprocess.Popen(["open", str(APP_DIR)])
+            elif os.name == "nt":
+                os.startfile(APP_DIR)  # type: ignore[attr-defined]
+            else:
+                APP_DIR = subprocess.Popen(
+                  ["zenity",
+                  "--file-selection",
+                  "--directory"], stdout=subprocess.PIPE)\
+                  .communicate()[0].decode().strip()
+                APP_DIR = Path(APP_DIR)
+                self._show_selector() # re-render
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir la carpeta:\n{e}")
+
+
+if __name__ == "__main__":
+    APP_DIR.mkdir(parents=True, exist_ok=True)
+    App().mainloop()

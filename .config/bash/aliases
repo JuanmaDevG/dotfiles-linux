@@ -1,0 +1,82 @@
+#!/bin/bash
+
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias cal='task calendar'
+
+alias py='python3'
+alias pyvenv='. ~/.local/apps/pyvenv/bin/activate'
+alias unpyvenv='deactivate'
+
+
+alias gstat='git status'
+alias gadd='git add .'
+alias gcomm='git commit -m'
+alias gpsh='git push'
+alias gbr='git branch'
+alias gpll='git pull'
+alias grem='git remote -v'
+alias gssh='eval "$(ssh-agent -s)" && ssh-add ~/.ssh/github'
+alias gck='git checkout'
+
+alias uskb="setxkbmap us"
+alias eskb="setxkbmap es"
+
+function gdownload {
+  if [ -z "$1" ]; then 
+    printf "Usage: gdownload <repo_name> [username | orgname] [-e | --external]\n"
+    return
+  fi
+  if [ -z "$2" ]; then
+    local usr_name='JuanmaDevG'
+  else
+    local usr_name="$2"
+  fi
+  #TODO: make function gupdate-orgs that displays on file ~/.config/bash/gh-orgs
+  # this is to remove the -e argument and use ssh for my orgs
+  if [ -z "$3" ]; then
+    local connection="git@github.com:"
+  elif [ "$3" = "-e" ] || [ "$3" = "--external" ]; then
+    local connection="https://github.com/"
+  else
+    printf "ERROR: third argument must be <-e> or <--external>\n"
+    pkill ssh
+    return
+  fi
+  gssh
+  git clone "$connection$usr_name/$1"
+  pkill ssh
+}
+
+function gupload {
+  if [ -z "$1" ]; then
+    printf "Usage: gupload \"<commit message>\"\n"
+    return
+  fi
+  gadd && gcomm "$1" && gssh && gpsh && pkill ssh
+}
+
+function env++ {
+  local tools_dir="$HOME/.local/apps/env++"
+  if [ -z "$1" ]; then
+    printf "Usage:\nenv++ [ <dir/name> | <plugin-name> ]\n"
+    printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
+
+    ls "$tools_dir"
+    return
+  fi
+
+  if [ "$1" = off ]; then
+    return
+  fi
+
+  . "$tools_dir/$1"
+}

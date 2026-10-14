@@ -1,4 +1,13 @@
 #!/bin/bash
 # Installer and uninstaller script
 
+# Think about a .backup directory and an ls of the project's directory structure
+install() {
+  rsync -r .config $HOME/
+}
 
+update() {
+}
+
+regret() {
+}

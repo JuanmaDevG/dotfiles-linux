@@ -4,6 +4,8 @@
 # Think about a .backup directory and an ls of the project's directory structure
 install() {
   rsync -r .config $HOME/
+  rsync -r bin $HOME/
+  # TODO: local install nvim + lazyvim + lsp's
 }
 
 update() {

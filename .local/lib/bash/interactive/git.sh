@@ -1,21 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-alias ls='ls --color=auto'
-alias grep='grep --color=auto'
-alias fgrep='fgrep --color=auto'
-alias egrep='egrep --color=auto'
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias cal='task calendar'
-
-alias py='python3'
-alias pyvenv='. ~/.local/apps/pyvenv/bin/activate'
-alias unpyvenv='deactivate'
-
+[ -n "$BASHLIB_INTERACTIVE_GIT" ] && return
+readonly BASHLIB_INTERACTIVE_GIT=true
 
 alias gstat='git status'
 alias gadd='git add .'
@@ -27,11 +13,8 @@ alias grem='git remote -v'
 alias gssh='eval "$(ssh-agent -s)" && ssh-add ~/.ssh/github'
 alias gck='git checkout'
 
-alias uskb="setxkbmap us"
-alias eskb="setxkbmap es"
-
 function gdownload {
-  if [ -z "$1" ]; then 
+  if [ -z "$1" ]; then
     printf "Usage: gdownload <repo_name> [username | orgname] [-e | --external]\n"
     return
   fi
@@ -62,21 +45,4 @@ function gupload {
     return
   fi
   gadd && gcomm "$1" && gssh && gpsh && pkill ssh
-}
-
-function env++ {
-  local tools_dir="$HOME/.local/apps/env++"
-  if [ -z "$1" ]; then
-    printf "Usage:\nenv++ [ <dir/name> | <plugin-name> ]\n"
-    printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
-
-    ls "$tools_dir"
-    return
-  fi
-
-  if [ "$1" = off ]; then
-    return
-  fi
-
-  . "$tools_dir/$1"
 }

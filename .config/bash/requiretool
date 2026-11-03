@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+require() {
+  local tools_dir="$HOME/.local/lib/bash"
+
+  while [ -n "$1" ]; do
+    case "$1" in
+    -r) local recursive=true ;;
+    no) printf "This feature is not implemented yet\n" ;;
+    *) local entry="$tools_dir/$1" ;;
+    esac
+    shift
+  done
+
+  if [ -z "$entry" ] && [[ $- == *i* ]]; then
+    printf "Usage:\nrequire [-r|no] <module>|<directory>\n"
+    printf "  -r            - Recursive (only for directories)\n"
+    printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
+    printf "  <module>      - Bash file that contains functions and aliases\n"
+    printf "  <directory>   - Import an entire directory (no recursive)\n"
+    printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
+
+    tree "$tools_dir"
+    return
+  fi
+
+  if [ -d "$entry" ]; then
+    for f in $(ls "$entry"); do
+      local m="$entry/$f"
+      if [ -f "$m" ]; then
+        . "$m"
+      fi
+    done
+    return
+  fi
+  # TODO: add function that unloads functions, aliases and variables
+
+  . "$entry"
+}

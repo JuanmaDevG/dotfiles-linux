@@ -5,10 +5,11 @@ require() {
   local tools_dir="$HOME/.local/lib/bash"
 
   usage_msg() {
-    printf "Usage:\nrequire [-h|?|-r|no] <module>|<directory>\n"
+    printf "Usage:\nrequire [-h|?|-r|what|no] <module>|<directory>\n"
     printf "  -h            - Show this help message\n"
     printf "  ?             - List loaded modules\n"
     printf "  -r            - Recursive (only for directories)\n"
+    printf "  what          - Show tree (what can I 'require')\n"
     printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
     printf "  <module>      - Bash file that contains functions and aliases\n"
     printf "  <directory>   - Import an entire directory (no recursive)\n"
@@ -26,8 +27,13 @@ require() {
 
   while [ -n "$1" ]; do
     case "$1" in
+    -h)
+      local entry="-h"
+      break
+      ;;
+    what) local entry="what" ;;
     -r) local recursive=true ;;
-    no) printf "This feature is not implemented yet\n" ;;
+    no) local entry="no" ;;
     *) local entry="$tools_dir/$1" ;;
     esac
     shift
@@ -38,8 +44,19 @@ require() {
     return
   fi
 
+  if [ "$entry" = "what" ]; then
+    tree "$tools_dir"
+    return
+  fi
+
+  if [ "$entry" = "no" ]; then
+    printf "This feature is not implemented yet\n"
+    printf "Type 'require -h' for help\n"
+    return
+  fi
+
   if [ -z "$entry" ] && [[ $- == *i* ]]; then
-    usage_msg
+    printf "Type 'require -h' for help\n"
     printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
 
     tree "$tools_dir"

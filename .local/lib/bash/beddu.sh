@@ -7,78 +7,83 @@
 # Copyright © 2026 Manuele Sarfatti
 # Licensed under the MIT license
 # See https://github.com/mjsarfatti/beddu
+#
+# Modified by Juan Manuel (JuanmaDevG)
+# juanmagonzalezmartinez@protonmail.com
 
 # Do not load beddu two times
-[[ $BEDDU_LOADED ]] && return
-readonly BEDDU_LOADED=true
+[[ $BASHLIB_BEDDU ]] && return
+readonly BASHLIB_BEDDU="${BASH_SOURCE[0]##*/bash/}"
 
 up() {
-    printf "\033[A"
+  printf "\033[A"
 }
 down() {
-    printf "\033[B"
+  printf "\033[B"
 }
 bol() {
-    printf "\r"
+  printf "\r"
 }
 eol() {
-    printf "\033[999C"
+  printf "\033[999C"
 }
 cl() {
-    printf "\033[2K"
+  printf "\033[2K"
 }
 upclear() {
-    up; bol; cl
+  up
+  bol
+  cl
 }
 line() {
-    printf "\n"
+  printf "\n"
 }
 show_cursor() {
-    printf "\033[?25h"
+  printf "\033[?25h"
 }
 hide_cursor() {
-    printf "\033[?25l"
-    _beddu_set_traps
+  printf "\033[?25l"
+  _beddu_set_traps
 }
 _beddu_set_traps() {
-    local signal current
-    for signal in EXIT INT TERM; do
-        current="$(trap -p "$signal")"
-        [[ "$current" == *_beddu_on_signal* ]] && continue
-        if [[ -n "$current" ]]; then
-            eval "set -- ${current#trap -- }"
-            printf -v "_beddu_trap_${signal}" '%s' "$1"
-        else
-            unset "_beddu_trap_${signal}"
-        fi
-    done
-    trap '_beddu_on_signal EXIT "$?"' EXIT
-    trap '_beddu_on_signal INT' INT
-    trap '_beddu_on_signal TERM' TERM
+  local signal current
+  for signal in EXIT INT TERM; do
+    current="$(trap -p "$signal")"
+    [[ "$current" == *_beddu_on_signal* ]] && continue
+    if [[ -n "$current" ]]; then
+      eval "set -- ${current#trap -- }"
+      printf -v "_beddu_trap_${signal}" '%s' "$1"
+    else
+      unset "_beddu_trap_${signal}"
+    fi
+  done
+  trap '_beddu_on_signal EXIT "$?"' EXIT
+  trap '_beddu_on_signal INT' INT
+  trap '_beddu_on_signal TERM' TERM
 }
 _beddu_on_signal() {
-    local signal="$1" status="$2"
-    local saved="_beddu_trap_${signal}"
-    if [[ "$signal" == EXIT ]]; then
-        if declare -F spinning >/dev/null && spinning; then
-            spop
-        else
-            show_cursor
-        fi
+  local signal="$1" status="$2"
+  local saved="_beddu_trap_${signal}"
+  if [[ "$signal" == EXIT ]]; then
+    if declare -F spinning >/dev/null && spinning; then
+      spop
+    else
+      show_cursor
     fi
-    if [[ -n "${!saved+set}" ]]; then
-        if [[ "${status:-0}" -eq 0 ]]; then
-            eval "${!saved}"
-        else
-            _beddu_return "$status" || eval "${!saved}"
-        fi
-    elif [[ "$signal" != EXIT ]]; then
-        trap - "$signal"
-        kill -"$signal" "$BASHPID"
+  fi
+  if [[ -n "${!saved+set}" ]]; then
+    if [[ "${status:-0}" -eq 0 ]]; then
+      eval "${!saved}"
+    else
+      _beddu_return "$status" || eval "${!saved}"
     fi
+  elif [[ "$signal" != EXIT ]]; then
+    trap - "$signal"
+    kill -"$signal" "$BASHPID"
+  fi
 }
 _beddu_return() {
-    return "$1"
+  return "$1"
 }
 
 readonly _q='?'
@@ -92,292 +97,292 @@ readonly _spinner='⣷⣯⣟⡿⢿⣻⣽⣾' # See for alternatives: https://ant
 readonly _spinner_frame_duration=0.1
 
 pen() {
-    local new_line="\n"
-    local text="${*: -1}"      
-    local args=("${@:1:$#-1}") 
-    local format_code=""
-    local reset_code="\033[0m"
-    for arg in "${args[@]}"; do
-        arg=${arg,,} 
-        case "$arg" in
-        -n) new_line="" ;;
-        bold) format_code+="\033[1m" ;;
-        italic) format_code+="\033[3m" ;;
-        underline) format_code+="\033[4m" ;;
-        black) format_code+="\033[30m" ;;
-        red) format_code+="\033[31m" ;;
-        green) format_code+="\033[32m" ;;
-        yellow) format_code+="\033[33m" ;;
-        blue) format_code+="\033[34m" ;;
-        purple) format_code+="\033[35m" ;;
-        cyan) format_code+="\033[36m" ;;
-        white) format_code+="\033[37m" ;;
-        grey | gray) format_code+="\033[90m" ;;
-        [0-9]*)
-            if [[ "$arg" =~ ^[0-9]+$ ]] && [ "$arg" -ge 0 ] && [ "$arg" -le 255 ]; then
-                format_code+="\033[38;5;${arg}m"
-            fi
-            ;;
-        *) ;; 
-        esac
-    done
-    printf "%b%s%b%b" "${format_code}" "${text}" "${reset_code}" "${new_line}"
+  local new_line="\n"
+  local text="${*: -1}"
+  local args=("${@:1:$#-1}")
+  local format_code=""
+  local reset_code="\033[0m"
+  for arg in "${args[@]}"; do
+    arg=${arg,,}
+    case "$arg" in
+    -n) new_line="" ;;
+    bold) format_code+="\033[1m" ;;
+    italic) format_code+="\033[3m" ;;
+    underline) format_code+="\033[4m" ;;
+    black) format_code+="\033[30m" ;;
+    red) format_code+="\033[31m" ;;
+    green) format_code+="\033[32m" ;;
+    yellow) format_code+="\033[33m" ;;
+    blue) format_code+="\033[34m" ;;
+    purple) format_code+="\033[35m" ;;
+    cyan) format_code+="\033[36m" ;;
+    white) format_code+="\033[37m" ;;
+    grey | gray) format_code+="\033[90m" ;;
+    [0-9]*)
+      if [[ "$arg" =~ ^[0-9]+$ ]] && [ "$arg" -ge 0 ] && [ "$arg" -le 255 ]; then
+        format_code+="\033[38;5;${arg}m"
+      fi
+      ;;
+    *) ;;
+    esac
+  done
+  printf "%b%s%b%b" "${format_code}" "${text}" "${reset_code}" "${new_line}"
 }
 
 run() {
-    local outvar_name errvar_name
-    local -n outvar errvar # Declare namerefs (will be assigned below if needed)
-    local cmd
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --out)
-            outvar_name="$2"
-            shift 2
-            ;;
-        --err)
-            errvar_name="$2"
-            shift 2
-            ;;
-        *)
-            cmd=("$@")
-            break
-            ;;
-        esac
-    done
-    [[ -n "${outvar_name}" ]] && local -n outvar="${outvar_name}"
-    [[ -n "${errvar_name}" ]] && local -n errvar="${errvar_name}"
-    local stdout_file stderr_file
-    stdout_file=$(mktemp)
-    stderr_file=$(mktemp)
-    local old_settings=$- 
-    set +e # Don't immediately exit on error
-    "${cmd[@]}" >"${stdout_file}" 2>"${stderr_file}"
-    local exit_code=$?
-    [[ -n "${outvar_name}" ]] && outvar="$(<"$stdout_file")"
-    [[ -n "${errvar_name}" ]] && errvar="$(<"$stderr_file")"
-    if [ $exit_code -ne 0 ] && [[ -z "${errvar_name}" ]]; then
-        cleaned_errvar=$(sed 's/^[^:]\{1,\}:\( line [0-9]\{1,\}:\)\{0,1\} \(.*\)/\2/' "$stderr_file")
-        line
-        throw "Command \`$(pen 245 "${cmd[*]}")\` failed with error:"
-        pen 245 "  ${cleaned_errvar}"
-        pen "  called from: $(pen 245 "${BASH_SOURCE[1]}:${BASH_LINENO[0]}") in $(pen 245 "${FUNCNAME[1]:-main}")"
-        line
-    fi
-    rm -f "${stdout_file}" "${stderr_file}"
-    if [[ $old_settings == *e* ]]; then set -e; else set +e; fi
-    return $exit_code
+  local outvar_name errvar_name
+  local -n outvar errvar # Declare namerefs (will be assigned below if needed)
+  local cmd
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --out)
+      outvar_name="$2"
+      shift 2
+      ;;
+    --err)
+      errvar_name="$2"
+      shift 2
+      ;;
+    *)
+      cmd=("$@")
+      break
+      ;;
+    esac
+  done
+  [[ -n "${outvar_name}" ]] && local -n outvar="${outvar_name}"
+  [[ -n "${errvar_name}" ]] && local -n errvar="${errvar_name}"
+  local stdout_file stderr_file
+  stdout_file=$(mktemp)
+  stderr_file=$(mktemp)
+  local old_settings=$-
+  set +e # Don't immediately exit on error
+  "${cmd[@]}" >"${stdout_file}" 2>"${stderr_file}"
+  local exit_code=$?
+  [[ -n "${outvar_name}" ]] && outvar="$(<"$stdout_file")"
+  [[ -n "${errvar_name}" ]] && errvar="$(<"$stderr_file")"
+  if [ $exit_code -ne 0 ] && [[ -z "${errvar_name}" ]]; then
+    cleaned_errvar=$(sed 's/^[^:]\{1,\}:\( line [0-9]\{1,\}:\)\{0,1\} \(.*\)/\2/' "$stderr_file")
+    line
+    throw "Command \`$(pen 245 "${cmd[*]}")\` failed with error:"
+    pen 245 "  ${cleaned_errvar}"
+    pen "  called from: $(pen 245 "${BASH_SOURCE[1]}:${BASH_LINENO[0]}") in $(pen 245 "${FUNCNAME[1]:-main}")"
+    line
+  fi
+  rm -f "${stdout_file}" "${stderr_file}"
+  if [[ $old_settings == *e* ]]; then set -e; else set +e; fi
+  return $exit_code
 }
 
 check() {
-    if spinning; then
-        spop
-        upclear
-    fi
-    pen -n green "${_mark:-✓} "
-    pen "$@"
+  if spinning; then
+    spop
+    upclear
+  fi
+  pen -n green "${_mark:-✓} "
+  pen "$@"
 }
 
 repen() {
-    upclear
-    pen "$@"
+  upclear
+  pen "$@"
 }
 
 _spinner_pid=""
 _frame_duration="${_spinner_frame_duration:-0.1}"
 spin() {
-    local message=("$@")
-    local spinner="${_spinner:-⣷⣯⣟⡿⢿⣻⣽⣾}"
-    if spinning; then
-        sleep "$_frame_duration"
-        spop --keep-cursor-hidden
-    fi
-    hide_cursor
-    (
-        trap "exit 0" USR1
-        pen -n cyan "${spinner:0:1} "
+  local message=("$@")
+  local spinner="${_spinner:-⣷⣯⣟⡿⢿⣻⣽⣾}"
+  if spinning; then
+    sleep "$_frame_duration"
+    spop --keep-cursor-hidden
+  fi
+  hide_cursor
+  (
+    trap "exit 0" USR1
+    pen -n cyan "${spinner:0:1} "
+    pen "${message[@]}"
+    while true; do
+      for ((i = 0; i < ${#spinner}; i++)); do
+        frame="${spinner:$i:1}"
+        up
+        bol
+        pen -n cyan "${frame} "
         pen "${message[@]}"
-        while true; do
-            for ((i = 0; i < ${#spinner}; i++)); do
-                frame="${spinner:$i:1}"
-                up
-                bol
-                pen -n cyan "${frame} "
-                pen "${message[@]}"
-                sleep "$_frame_duration"
-            done
-        done
-    ) &
-    _spinner_pid=$!
+        sleep "$_frame_duration"
+      done
+    done
+  ) &
+  _spinner_pid=$!
 }
 spop() {
-    local old_settings=$- 
-    set +e # Don't immediately exit on error
-    local keep_cursor_hidden=false
-    [[ "$1" == "--keep-cursor-hidden" ]] && keep_cursor_hidden=true
-    if spinning; then
-        kill -USR1 "${_spinner_pid}" 2>/dev/null
-        sleep "$_frame_duration"
-        if ps -p "${_spinner_pid}" >/dev/null 2>&1; then
-            kill "${_spinner_pid}" 2>/dev/null
-        fi
-        if [[ "$keep_cursor_hidden" == false ]]; then
-            show_cursor
-        fi
-        _spinner_pid=""
+  local old_settings=$-
+  set +e # Don't immediately exit on error
+  local keep_cursor_hidden=false
+  [[ "$1" == "--keep-cursor-hidden" ]] && keep_cursor_hidden=true
+  if spinning; then
+    kill -USR1 "${_spinner_pid}" 2>/dev/null
+    sleep "$_frame_duration"
+    if ps -p "${_spinner_pid}" >/dev/null 2>&1; then
+      kill "${_spinner_pid}" 2>/dev/null
     fi
-    if [[ $old_settings == *e* ]]; then set -e; else set +e; fi
+    if [[ "$keep_cursor_hidden" == false ]]; then
+      show_cursor
+    fi
+    _spinner_pid=""
+  fi
+  if [[ $old_settings == *e* ]]; then set -e; else set +e; fi
 }
 spinning() {
-    [[ -n "${_spinner_pid}" ]]
+  [[ -n "${_spinner_pid}" ]]
 }
 
 throw() {
-    if spinning; then
-        spop
-        upclear
-    fi
-    pen -n red "${_cross:-✗} "
-    pen "$@"
+  if spinning; then
+    spop
+    upclear
+  fi
+  pen -n red "${_cross:-✗} "
+  pen "$@"
 }
 
 warn() {
-    if spinning; then
-        spop
-        upclear
-    fi
-    pen -n yellow bold italic "${_warn:-!} "
-    pen italic "$@"
+  if spinning; then
+    spop
+    upclear
+  fi
+  pen -n yellow bold italic "${_warn:-!} "
+  pen italic "$@"
 }
 
 choose() {
-    local -n outvar="$1"
-    local prompt
-    local options=("${@:3}") 
-    local current=0
-    local count=${#options[@]}
-    prompt=$(
-        pen -n blue "${_q:-?} "
-        pen -n "${2} "
-        pen gray "[↑↓]"
-    )
-    hide_cursor
-    pen "$prompt"
-    while true; do
-        local index=0
-        for item in "${options[@]}"; do
-            if ((index == current)); then
-                pen -n blue "${_O:-●} "
-                pen "${item}"
-            else
-                pen gray "${_o:-◌} ${item}"
-            fi
-            ((++index))
-        done
-        read -s -r -n1 key
-        if [[ $key == $'\e' ]]; then
-            read -s -r -n2 -t 0.0001 escape
-            key+="$escape"
-        fi
-        case "$key" in
-        $'\e[A' | 'k') 
-            ((--current))
-            [[ $current -lt 0 ]] && current=$((count - 1))
-            ;;
-        $'\e[B' | 'j') 
-            ((++current))
-            [[ $current -ge "$count" ]] && current=0
-            ;;
-        '') 
-            break
-            ;;
-        esac
-        echo -en "\e[${count}A\e[J"
+  local -n outvar="$1"
+  local prompt
+  local options=("${@:3}")
+  local current=0
+  local count=${#options[@]}
+  prompt=$(
+    pen -n blue "${_q:-?} "
+    pen -n "${2} "
+    pen gray "[↑↓]"
+  )
+  hide_cursor
+  pen "$prompt"
+  while true; do
+    local index=0
+    for item in "${options[@]}"; do
+      if ((index == current)); then
+        pen -n blue "${_O:-●} "
+        pen "${item}"
+      else
+        pen gray "${_o:-◌} ${item}"
+      fi
+      ((++index))
     done
-    outvar="${options[$current]}"
+    read -s -r -n1 key
+    if [[ $key == $'\e' ]]; then
+      read -s -r -n2 -t 0.0001 escape
+      key+="$escape"
+    fi
+    case "$key" in
+    $'\e[A' | 'k')
+      ((--current))
+      [[ $current -lt 0 ]] && current=$((count - 1))
+      ;;
+    $'\e[B' | 'j')
+      ((++current))
+      [[ $current -ge "$count" ]] && current=0
+      ;;
+    '')
+      break
+      ;;
+    esac
+    echo -en "\e[${count}A\e[J"
+  done
+  outvar="${options[$current]}"
 }
 
 confirm() {
-    local default="y"
-    local hint="[Y/n]"
-    local prompt
-    local response
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --default-no)
-            default="n"
-            hint="[y/N]"
-            shift
-            ;;
-        --default-yes)
-            shift
-            ;;
-        *) break ;;
-        esac
-    done
-    prompt=$(
-        pen -n blue "${_q:-?} "
-        pen -n "$1"
-        pen gray " $hint"
-        pen -n blue "${_a:-❯} "
-    )
-    show_cursor
-    while true; do
-        read -r -p "$prompt" response
-        response="${response:-$default}"
-        case "$response" in
-        [Yy] | [Yy][Ee][Ss])
-            upclear
-            pen -n blue "${_a:-❯} "
-            pen "yes"
-            return 0
-            ;;
-        [Nn] | [Nn][Oo])
-            upclear
-            pen -n blue "${_a:-❯} "
-            pen "no"
-            return 1
-            ;;
-        *)
-            echo
-            warn "Please answer yes or no."
-            ;;
-        esac
-    done
+  local default="y"
+  local hint="[Y/n]"
+  local prompt
+  local response
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --default-no)
+      default="n"
+      hint="[y/N]"
+      shift
+      ;;
+    --default-yes)
+      shift
+      ;;
+    *) break ;;
+    esac
+  done
+  prompt=$(
+    pen -n blue "${_q:-?} "
+    pen -n "$1"
+    pen gray " $hint"
+    pen -n blue "${_a:-❯} "
+  )
+  show_cursor
+  while true; do
+    read -r -p "$prompt" response
+    response="${response:-$default}"
+    case "$response" in
+    [Yy] | [Yy][Ee][Ss])
+      upclear
+      pen -n blue "${_a:-❯} "
+      pen "yes"
+      return 0
+      ;;
+    [Nn] | [Nn][Oo])
+      upclear
+      pen -n blue "${_a:-❯} "
+      pen "no"
+      return 1
+      ;;
+    *)
+      echo
+      warn "Please answer yes or no."
+      ;;
+    esac
+  done
 }
 
 request() {
-    local -n outvar="$1" 
-    local prompt
-    local answer
-    prompt=$(
-        pen -n blue "${_q:-?} "
-        pen "${2}"
-        pen -n blue "${_a:-❯} "
-    )
-    show_cursor
-    while true; do
-        read -r -p "$prompt" answer
-        case "$answer" in
-        "")
-            echo
-            warn "Please type your answer."
-            ;;
-        *) break ;;
-        esac
-    done
-    outvar="$answer"
+  local -n outvar="$1"
+  local prompt
+  local answer
+  prompt=$(
+    pen -n blue "${_q:-?} "
+    pen "${2}"
+    pen -n blue "${_a:-❯} "
+  )
+  show_cursor
+  while true; do
+    read -r -p "$prompt" answer
+    case "$answer" in
+    "")
+      echo
+      warn "Please type your answer."
+      ;;
+    *) break ;;
+    esac
+  done
+  outvar="$answer"
 }
 
 seek() {
-    local -n outvar="$1" 
-    local prompt
-    local answer
-    prompt=$(
-        pen -n blue "${_q:-?} "
-        pen "${2}"
-        pen -n blue "${_a:-❯} "
-    )
-    show_cursor
-    read -r -p "$prompt" answer
-    outvar="$answer"
+  local -n outvar="$1"
+  local prompt
+  local answer
+  prompt=$(
+    pen -n blue "${_q:-?} "
+    pen "${2}"
+    pen -n blue "${_a:-❯} "
+  )
+  show_cursor
+  read -r -p "$prompt" answer
+  outvar="$answer"
 }

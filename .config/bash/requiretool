@@ -3,6 +3,15 @@
 require() {
   local tools_dir="$HOME/.local/lib/bash"
 
+  if [ "$1" = "?" ]; then
+    local modules=($(compgen -v | grep BASHLIB))
+    printf "\e[1mLoaded modules (${#modules[@]}):\e[0m\n"
+    for m in ${modules[@]}; do
+      printf "${!m}\n"
+    done
+    return
+  fi
+
   while [ -n "$1" ]; do
     case "$1" in
     -r) local recursive=true ;;
@@ -13,7 +22,8 @@ require() {
   done
 
   if [ -z "$entry" ] && [[ $- == *i* ]]; then
-    printf "Usage:\nrequire [-r|no] <module>|<directory>\n"
+    printf "Usage:\nrequire [?|-r|no] <module>|<directory>\n"
+    printf "  ?             - List loaded modules\n"
     printf "  -r            - Recursive (only for directories)\n"
     printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
     printf "  <module>      - Bash file that contains functions and aliases\n"
@@ -33,7 +43,6 @@ require() {
     done
     return
   fi
-  # TODO: add function that unloads functions, aliases and variables
 
   . "$entry"
 }

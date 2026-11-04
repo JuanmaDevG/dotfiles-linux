@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 # TODO: add a tool to create new require modules
+# TODO: add a subcommand "-e|--env <module>" to check environment variables that a module creates
+# TODO: add a subcommand "-f|--funcs <module>" to check functions that a module creates
+# TODO: add a subcommand "-x|--executes <module>" to check a summary of what a module executes
 require() {
   local tools_dir="$HOME/.local/lib/bash"
 
@@ -12,7 +15,7 @@ require() {
     printf "  what          - Show tree (what can I 'require')\n"
     printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
     printf "  <module>      - Bash file that contains functions and aliases\n"
-    printf "  <directory>   - Import an entire directory (no recursive)\n"
+    printf "  <directory>   - Import an entire directory (not recursive)\n"
   }
   trap 'unset -f usage_msg' RETURN
 
@@ -39,6 +42,11 @@ require() {
     shift
   done
 
+  if [ -z "$entry" ] && [[ $- == *i* ]]; then
+    printf "\e[1;31mNo arguments, type '\e[32mrequire -h\e[1;31m' for help\e[0m\n"
+    return
+  fi
+
   if [ "$entry" = "-h" ]; then
     usage_msg
     return
@@ -50,16 +58,8 @@ require() {
   fi
 
   if [ "$entry" = "no" ]; then
-    printf "This feature is not implemented yet\n"
+    printf "\e[1;33mThis feature is not implemented yet\e[0m\n"
     printf "Type 'require -h' for help\n"
-    return
-  fi
-
-  if [ -z "$entry" ] && [[ $- == *i* ]]; then
-    printf "Type 'require -h' for help\n"
-    printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
-
-    tree "$tools_dir"
     return
   fi
 

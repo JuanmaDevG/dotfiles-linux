@@ -1,77 +1,96 @@
 #!/usr/bin/env bash
 
-# TODO: add a tool to create new require modules
-# TODO: add a subcommand "-e|--env <module>" to check environment variables that a module creates
-# TODO: add a subcommand "-f|--funcs <module>" to check functions that a module creates
-# TODO: add a subcommand "-x|--executes <module>" to check a summary of what a module executes
+# TODO: add a tool to create new requiretool modules
+# TODO: add an option "-e|--env <module>" to check environment variables that a module creates (check unset)
+# TODO: add an option "-f|--funcs <module>" to check functions that a module creates (check unset -f)
+# TODO: add an option "-x|--executes <module>" to check a summary of what a module executes (use awk)
+# TODO: add an option "-d|--description <module>" that reads module function descriptions from an xml file
+# TODO: make require to write to ~/.cache/requiretool/ dir to accumulate and organize data
+# TODO: make a man page and some specific repo
+# TODO: the subcommand what must have a search feature that shows the tree directory tree structure
+# TODO: if the query result is too long, 'what' subcommand will show a less?
+# TODO: make the github repository
 require() {
-  local tools_dir="$HOME/.local/lib/bash"
+  local require_libdir="$HOME/.local/lib/bash"
 
+  local COLORS=("\e[0m" "\e[1m" "\e[31m" "\e[32m" "\e[33m")
+  local RESET=0 BOLD=1 RED=2 GREEN=3 YELLOW=4
+
+  [ ! -t 1 ] && unset COLORS
   usage_msg() {
-    printf "Usage:\nrequire [-h|?|-r|what|no] <module>|<directory>\n"
-    printf "  -h            - Show this help message\n"
-    printf "  ?             - List loaded modules\n"
-    printf "  -r            - Recursive (only for directories)\n"
-    printf "  what          - Show tree (what can I 'require')\n"
-    printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
-    printf "  <module>      - Bash file that contains functions and aliases\n"
-    printf "  <directory>   - Import an entire directory (not recursive)\n"
+    printf "Usage:\nrequire [-h|?|-r|what|no] <module>|<directory> ...\n"
+    printf "  -h | --help               - Show this help message\n"
+    printf "  ?                         - List loaded modules\n"
+    printf "  -r <module>|<directory>   - Recursive (only for directories)\n"
+    printf "  what                      - Show tree (what can I 'require')\n"
+    printf "  no                        - (not implemented yet) Unloads a file's functions and aliaes\n"
+    printf "  <module>                  - Bash file that contains functions and aliases\n"
+    printf "  <directory>               - Import an entire directory (not recursive)\n"
   }
   trap 'unset -f usage_msg' RETURN
 
-  if [ "$1" = "?" ]; then
-    local modules=($(compgen -v | grep BASHLIB))
-    printf "\e[1mLoaded modules (${#modules[@]}):\e[0m\n"
-    for m in ${modules[@]}; do
-      printf "${!m}\n"
-    done
-    return
-  fi
-
   while [ -n "$1" ]; do
     case "$1" in
-    -h)
-      local entry="-h"
-      break
+    -r)
+      local recursive=true
       ;;
-    what) local entry="what" ;;
-    -r) local recursive=true ;;
-    no) local entry="no" ;;
-    *) local entry="$tools_dir/$1" ;;
+    -h|--help|what|no|?)
+      local subcommand="$1"
+      ;;
+    *) local entry="$require_libdir/$1" ;;
     esac
     shift
   done
 
-  if [ -z "$entry" ] && [[ $- == *i* ]]; then
-    printf "\e[1;31mNo arguments, type '\e[32mrequire -h\e[1;31m' for help\e[0m\n"
-    return
-  fi
-
-  if [ "$entry" = "-h" ]; then
-    usage_msg
-    return
-  fi
-
-  if [ "$entry" = "what" ]; then
-    tree "$tools_dir"
-    return
-  fi
-
-  if [ "$entry" = "no" ]; then
-    printf "\e[1;33mThis feature is not implemented yet\e[0m\n"
-    printf "Type 'require -h' for help\n"
-    return
-  fi
-
-  if [ -d "$entry" ]; then
-    for f in $(ls "$entry"); do
-      local m="$entry/$f"
-      if [ -f "$m" ]; then
-        . "$m"
+  # Query has subcommand
+  if [ -n "$subcommand" ]; then
+    if [ -n "$entry" ]; then
+      printf "${COLORS[$YELLOW]}%s${COLORS[$RESET]}\n" \
+        "Subcommands with <directory> or file> entries are not implemented yet"
+      return
+    fi
+    if [ "$subcommand" = "?" ]; then
+      local modules=($(compgen -v | grep BASHLIB))
+      printf "${COLORS[$BOLD]}Loaded modules (${#modules[@]}):${COLORS[$RESET]}\n"
+      for m in ${modules[@]}; do
+        printf "${!m}\n"
+      done
+      return
+    elif [ "$subcommand" = "-h" ]; then
+      usage_msg
+      return
+    elif [ "$subcommand" = "what" ]; then
+      if [ -z $(command -v tree) ]; then
+        printf "${COLORS[$YELLOW]}Install 'tree' to get this feature${COLORS[$RESET]}\n"
       fi
-    done
+      tree -C "$require_libdir"
+      return
+    elif [ "$subcommand" = "no" ]; then
+      printf "${COLORS[$BOLD]}${COLORS[$YELLOW]}%s${COLORS[$RESET]}\n" \
+        "This feature is not implemented yet"
+      printf "Type 'require -h' for help\n"
+    fi
     return
+  # Query has only entry
+  elif [ -n "$entry" ]; then
+    if [ -d "$entry" ]; then
+      for f in $(ls "$entry"); do
+        local m="$entry/$f"
+        if [ -f "$m" ]; then
+          . "$m"
+        elif [ -d "$entry" ] && [ -n "$recursive" ]; then
+          require "$entry"
+        fi
+      done
+    elif [ -f "$entry" ]; then
+      . "$entry"
+    else
+      printf "${COLORS[$RED]}ERROR: '$entry' is not defined${COLORS[$RESET]}\n"
+      printf "${COLORS[$GREEN]}  type 'require what' to look for modules${COLORS[$RESET]}\n"
+    fi
+  # If query is interactive show error
+  elif [[ $- == *i* ]]; then
+    printf "${COLORS[$RED]}%s${COLORS[$GREEN]}%s${COLORS[$RED]}%s${COLORS[$RESET]}\n" \
+      "Not enough arguments, type '" "require -h" "' for help"
   fi
-
-  . "$entry"
 }

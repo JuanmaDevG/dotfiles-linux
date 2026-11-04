@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 
+# TODO: add a tool to create new require modules
 require() {
   local tools_dir="$HOME/.local/lib/bash"
+
+  usage_msg() {
+    printf "Usage:\nrequire [-h|?|-r|no] <module>|<directory>\n"
+    printf "  -h            - Show this help message\n"
+    printf "  ?             - List loaded modules\n"
+    printf "  -r            - Recursive (only for directories)\n"
+    printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
+    printf "  <module>      - Bash file that contains functions and aliases\n"
+    printf "  <directory>   - Import an entire directory (no recursive)\n"
+  }
+  trap 'unset -f usage_msg' RETURN
 
   if [ "$1" = "?" ]; then
     local modules=($(compgen -v | grep BASHLIB))
@@ -21,13 +33,13 @@ require() {
     shift
   done
 
+  if [ "$entry" = "-h" ]; then
+    usage_msg
+    return
+  fi
+
   if [ -z "$entry" ] && [[ $- == *i* ]]; then
-    printf "Usage:\nrequire [?|-r|no] <module>|<directory>\n"
-    printf "  ?             - List loaded modules\n"
-    printf "  -r            - Recursive (only for directories)\n"
-    printf "  no            - (not implemented yet) Unloads a file's functions and aliaes\n"
-    printf "  <module>      - Bash file that contains functions and aliases\n"
-    printf "  <directory>   - Import an entire directory (no recursive)\n"
+    usage_msg
     printf "%s\n%s\n%s\n" "---------------" "Available tools:" "----------------"
 
     tree "$tools_dir"
